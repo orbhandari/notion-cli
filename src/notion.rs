@@ -11,7 +11,7 @@ pub struct NotionClient {
     // User notion data
     pub username: String,
     pub email: String,
-    pub http_client: HttpClient,
+    pub http_client: HTTPClient,
 }
 
 impl NotionClient {
@@ -25,9 +25,10 @@ impl NotionClient {
     // Result<<>, E>
     pub fn connect(&mut self) -> Result<(), bool> {
         if self.is_connected {
-            // Some result type saying client is already connected
             return Err(false);
         }
+
+        todo!();
 
         self.is_connected = true;
         return Ok(());
@@ -38,9 +39,10 @@ impl NotionClient {
      */
     pub fn disconnect(&mut self) -> Result<(), bool> {
         if !self.is_connected {
-            // Some result type saying client is already disconnected
             return Err(false);
         }
+
+        todo!();
 
         self.is_connected = false;
         return Ok(());
@@ -50,4 +52,27 @@ impl NotionClient {
      *
      */
     pub fn get_workspaces() {}
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn connects_to_notion_integration() {
+        todo!();
+    }
+    
+    #[test]
+    fn disconnects_from_notion_integration() {
+        todo!();
+    }
+
+    #[test]
+    fn no_double_connect() {
+        todo!();
+    }
+
+    #[test]
+    fn no_double_disconnect() {
+        todo!();
+    }
 }

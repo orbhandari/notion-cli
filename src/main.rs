@@ -1,4 +1,3 @@
-mod notion; // Do I need to make this pub if its the crate *root*?
 
 /*
  * Entry point to the Notion cli.
