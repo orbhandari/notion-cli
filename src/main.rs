@@ -1,4 +1,3 @@
-
 /*
  * Entry point to the Notion cli.
  */

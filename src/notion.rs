@@ -1,78 +1,117 @@
-// TODO: This should be a library crate! My binary crate will be a simple executable that runs
-// this.
+mod constants;
+
+mod models;
+
+use std::error::Error;
+
+use reqwest::header::{self, HeaderMap, HeaderValue};
+
+use crate::notion::{
+    constants::{BASE_URL, Databases},
+    models::{ListUsersResponse, RetrieveDatabaseResponse},
+};
+
+use dotenv;
 
 /*
- * Notion Client to interface with the provided API.
+ * Notion Client (currently blocking) to interface with the provided API.
  */
 pub struct NotionClient {
-    // Data for the client itself
-    pub is_connected: bool,
+    pub http_client: reqwest::blocking::Client, // Leverages persistent connection.
+    pub integration_name: String,
+    pub token: String,
+    pub version: String,
+    pub headers: Option<HeaderMap>, // TODO: Implement some sort of caching
+}
 
-    // User notion data
-    pub username: String,
-    pub email: String,
-    pub http_client: HTTPClient,
+// TODO: How does this work? The LSP was complaining that I should add this...
+impl Default for NotionClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NotionClient {
-    /*
-     * Connects to your Notion account if not already connected.
-     * Maintains a persistent HTTP connection by default.
-     * Note that connection properties cannot be modified afterwards,
-     * and must be disconnected then reconnected.
-     */
-    // TODO: Any "success or fail" type? What to return here? Perhaps a recoverable error
-    // Result<<>, E>
-    pub fn connect(&mut self) -> Result<(), bool> {
-        if self.is_connected {
-            return Err(false);
+    pub fn new() -> Self {
+        dotenv::dotenv().ok();
+
+        // TODO: Should I use expect here?
+        Self {
+            http_client: reqwest::blocking::Client::new(),
+            integration_name: dotenv::var("INTEGRATION_NAME")
+                .expect("Please set INTEGRATION_NAME in .env"),
+            token: dotenv::var("TOKEN").expect("Please set TOKEN in .env"),
+            version: dotenv::var("NOTION_VERSION").expect("Please set NOTION_VERSION in .env"),
+            headers: None,
         }
-
-        todo!();
-
-        self.is_connected = true;
-        return Ok(());
     }
 
-    /*
-     * Disconnects the HTTP connection if not already disconnected.
-     */
-    pub fn disconnect(&mut self) -> Result<(), bool> {
-        if !self.is_connected {
-            return Err(false);
+    // TODO: Should I use question mark operators here and propagate the errors?
+    pub fn list_users(&self) -> Result<Vec<String>, Box<dyn Error>> {
+        let url = String::from(BASE_URL) + "/v1/users";
+
+        let res = self
+            .http_client
+            .get(url)
+            .headers(self.build_headers())
+            .send()?;
+
+        let parsed: ListUsersResponse = res.json()?;
+
+        let mut users: Vec<String> = Vec::new();
+
+        for result in parsed.results {
+            if result.name != self.integration_name {
+                users.push(result.name);
+            }
         }
 
-        todo!();
-
-        self.is_connected = false;
-        return Ok(());
+        Ok(users)
     }
 
-    /*
-     *
-     */
-    pub fn get_workspaces() {}
+    pub fn retrieve_database(
+        &self,
+        database: Databases,
+    ) -> Result<RetrieveDatabaseResponse, Box<dyn Error>> {
+        let url = String::from(BASE_URL) + "/v1/databases/" + &database.get_database_id();
+
+        let res = self
+            .http_client
+            .get(url)
+            .headers(self.build_headers())
+            .send()?;
+        let parsed: RetrieveDatabaseResponse = res.json()?;
+
+        Ok(parsed)
+    }
+
+    fn build_headers(&self) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert("Notion-Version", HeaderValue::from_static("2025-09-03"));
+
+        let mut bearer_token = String::new();
+        bearer_token.push_str("Bearer ");
+        bearer_token.push_str(&self.token);
+
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(&bearer_token).expect("Token contains invalid characters."),
+        );
+        headers
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn connects_to_notion_integration() {
-        todo!();
-    }
-    
-    #[test]
-    fn disconnects_from_notion_integration() {
-        todo!();
-    }
+    use super::*;
 
     #[test]
-    fn no_double_connect() {
-        todo!();
-    }
-
-    #[test]
-    fn no_double_disconnect() {
-        todo!();
+    fn test_list_users() {
+        dotenv::dotenv().ok();
+        let notion_client = NotionClient::new();
+        assert_eq!(
+            vec![dotenv::var("TEST_USER_NAME").expect("Set test user name in .env")],
+            notion_client.list_users().unwrap()
+        )
     }
 }
